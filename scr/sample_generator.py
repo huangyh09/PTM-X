@@ -55,7 +55,9 @@ def main():
                 if PTM_use1[h,4] in ct_sites1 and PTM_use2[k,4] in ct_sites2:
                     continue
 
-                samp_temp = list(PTM_use1[h, [3,2,4]]) + list(PTM_use2[k, [3,2,4]])
+                samp_temp = list(PTM_use1[h, [2,4,3]]) + list(PTM_use2[k, [2,4,3]])
+                samp_temp[2] = samp_temp[2].lower()
+                samp_temp[5] = samp_temp[5].lower()
                 samp_data.append(samp_temp)
 
     # save postive and negative the samples
@@ -69,7 +71,7 @@ def main():
         fid.writelines("\t".join(samp_data[i]) + "\n")
     fid.close()
 
-    print("[PTM-X sample generator] %d postive and %d negative samples generated." 
+    print("[PTM-X] samples generated: %d postive and %d negative." 
         %(ct_data.shape[0], len(samp_data)))
 
 
