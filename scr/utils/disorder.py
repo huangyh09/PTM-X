@@ -108,6 +108,19 @@ def fetch_disorder(samples, dis_file="../../data/disorder/result.txt",
             if _cnt > 1 and verbose:
                 print("mutiple %s items in the file, use the first here." %_pro)
 
-    print("[PTM-X] fetched disordered regions on %d samples." %len(samples))
-    return dis_count
+    # check if both sites in disordered region
+    threshold = 2
+    both_in = np.zeros(samples.shape[0])
+    idx_mat = dis_count == dis_count
+    idx_use = idx_mat[:,0] * idx_mat[:,1]
+    both_in[idx_use] = ((dis_count[idx_use,:] >= threshold).sum(axis=1) == 2)
+
+    mean_val = np.mean(both_in[idx_use])
+    print("[PTM-X] fetched disordered regions for %d samples. mean: %.3f, "
+        "NA: %.1f%%." %(len(samples), mean_val, 100-np.mean(idx_mat)*100))
+    
+    RV = {}
+    RV["disorder_count"] = dis_count
+    RV["both_site_in"] = both_in
+    return RV
 

@@ -3,8 +3,8 @@
 
 import os
 import numpy as np
-from sklearn.metrics.cluster import *
 from sklearn.metrics import hamming_loss
+from sklearn.metrics.cluster import normalized_mutual_info_score
 
 #TODO: check X for unknown amino acid.
 
@@ -59,8 +59,8 @@ def get_msa(NOG_id, Ensm_id, PTM, rm_paralog=True, verbose=True,
     return msa_seq, msa_species, msa_prot
 
 
-def get_seq_coEvol(uni_prot_pair, PTM_pair, rm_paralog=True, verbose=True, 
-    data_dir="../../"):
+def get_seq_nMI(uni_prot_pair, PTM_pair, rm_paralog=True, verbose=True, 
+    data_dir="../../data/"):
     """
     standardize pro_id: Ensembl protein id; site1/2: int; res1/2: char
     output: save multiple sequence alignment for the two sites into a txt file
@@ -70,7 +70,7 @@ def get_seq_coEvol(uni_prot_pair, PTM_pair, rm_paralog=True, verbose=True,
     RV = None
 
     # load the id mapping file
-    veNOG_Ensm_Unip_file = data_dir + "/data/PTMsites/veNOG_Ensm_Unip.txt"
+    veNOG_Ensm_Unip_file = data_dir + "/eggNOG4/veNOG_Ensm_Unip.txt"
     veNOG_Ensm_Unip = np.loadtxt(veNOG_Ensm_Unip_file, delimiter='\t', 
         skiprows=1, dtype="str")
 
@@ -92,30 +92,50 @@ def get_seq_coEvol(uni_prot_pair, PTM_pair, rm_paralog=True, verbose=True,
                 str(veNOG_Ensm_Unip[idx_both[1], 1][0])]
 
     # get seq alignment
-    align_dir = data_dir + "/data/eggNOG4/veNOG/"
+    align_dir = data_dir + "/eggNOG4/veNOG/"
     msa_seq1, msa_species1, msa_prot1 = get_msa(NOG_ids[0], Ensm_ids[0], 
         PTM_pair[0], rm_paralog, verbose, align_dir)
     msa_seq2, msa_species2, msa_prot2 = get_msa(NOG_ids[1], Ensm_ids[1], 
         PTM_pair[1], rm_paralog, verbose, align_dir)
 
-    _idx = id_mapping(msa_species1, msa_species2) #shared species
+    # shared species
+    _idx = id_mapping(msa_species1, msa_species2, uniq_ref_only=False)
     idx1 = np.arange(len(_idx))[_idx>=0]
     idx2 = _idx[_idx>=0]
 
     msa_seq_use1 = np.array(msa_seq1)[idx1.astype(int)]
     msa_seq_use2 = np.array(msa_seq2)[idx2.astype(int)]
 
-    # print(np.array(msa_species1)[idx1.astype(int)])
-    # print(np.array(msa_species2)[idx2.astype(int)])
-    # print(msa_seq_use1)
-    # print(msa_seq_use2)
-
     # get coEvolution
     if len(idx1) > 0:
+        msa_seq_use1 = msa_seq_use1 == PTM_pair[0][0]
+        msa_seq_use2 = msa_seq_use2 == PTM_pair[1][0]
         nMI = normalized_mutual_info_score(msa_seq_use1, msa_seq_use2)
+
+        # print(np.array(msa_species1)[idx1.astype(int)])
+        # print(np.array(msa_species2)[idx2.astype(int)])
+        # print(msa_seq_use1)
+        # print(msa_seq_use2)
+        
+        # print(msa_species1[idx1.astype(int)])
+        # print(msa_species2[idx2.astype(int)])
     else:
         nMI = None
     return nMI
+
+
+def fetch_seqCoEvol(samples, verbose, data_dir):
+    coevol_val = np.zeros(samples.shape[0])
+
+    for i in range(len(coevol_val)):
+        coevol_val[i] = get_seq_nMI(samples[i,[0,3]], samples[i,[1,4]], 
+            verbose=verbose, data_dir=data_dir)
+
+    idx = coevol_val == coevol_val
+    mean_val = np.mean(coevol_val[idx])
+    print("[PTM-X] fetched sequence co-evolution for %d samples. mean: %.3f, "
+          "NA: %.1f%%." %(len(samples), mean_val, 100-np.mean(idx)*100))
+    return coevol_val
 
 
 def readFastaEntry(fasta_file, rm_paralog=False, pro_id=""):
@@ -168,170 +188,12 @@ def readFastaEntry(fasta_file, rm_paralog=False, pro_id=""):
             # kp_idx[i] = species.index(species_uni[i])
     return names[kp_idx], sequences[kp_idx], species[kp_idx]
     
-def get_align_site(pro_id, alignseq, site, res, data_dir="../../"):
-    '''the pro_id is the uniport id here
-    the site is the absolute site - 1'''
-    RV = -1
-    # load fasta file with uniprot id
-    fasta_file = data_dir + "/data/humanProteinSeq/human_proseq_unip.fasta"
-    fid = open(fasta_file,"r")
-    all_lines = fid.readlines()
-    fid.close()
 
-    # find out the protein with uniprot id
-    line_idx = -1
-    for i in range(len(all_lines)):
-        if all_lines[i][0] == ">" and all_lines[i][1:10].count(pro_id) == 1:
-            line_idx = i
-            break
-
-    # get the uniprot sequence
-    seq = ""
-    for i in range(line_idx+1, len(all_lines)):
-        if all_lines[i][0] == ">":
-            break
-        else :
-            seq = seq + all_lines[i].split()[0]
-    if seq == "":
-        print("There is no protein with id as %s." %pro_id)
-        return RV
-
-    # check uniprot residue 
-    if seq[site] != res:
-        # print("The %d residue " %(site+1) + "on %s " %pro_id + "is not %s!" %res)
-        return RV
-
-    # map the residue to the aligned sequence
-    seq_align = []
-    seq_align[:] = alignseq
-    seq_align = np.array(seq_align)
-    idx_no_gap = np.where(seq_align != '-')[0]
-    seq_align = seq_align[idx_no_gap]
-
-    len_sur = 10
-    left = min(len_sur, site)
-    right = min(len(seq)-1-site, len_sur)
-
-    for i in range(len(seq_align)):
-        left_tmp = min(len_sur, i)
-        right_tmp = min(len(seq_align)-1-i, len_sur)
-
-        left_use = min(left, left_tmp)
-        right_use = min(right, right_tmp)
-
-        seq_sur_unip = []
-        seq_sur_unip[:] = seq[site-left_use : site+right_use+1]
-
-        seq_sur_alig = []
-        seq_sur_alig[:] = seq_align[i-left_use : i+right_use+1]
-
-        mapped_len = sum(np.array(seq_sur_unip) == np.array(seq_sur_alig))
-
-        if (seq[site] == seq_align[i] and 
-            mapped_len >= min(len(seq_sur_unip), len_sur+1)):
-            if RV != -1:
-                print "multiple matched surrouding sequence"
-            RV = idx_no_gap[i]
-
-    return RV
-
-
-
-def site_coevolve(unip_id, site1, site2, res1, res2, rm_paralog=True, 
-	data_dir="../../"):
+def id_mapping(IDs1, IDs2, uniq_ref_only=True):
     """
-    standardize pro_id: Ensembl protein id; site1/2: int; res1/2: char
-    output: save multiple sequence alignment for the two sites into a txt file
-            return co-evolution score, float
-            (optional)show the Phylogenetic Trees
-    """
-    RV = np.zeros(site1.shape[0])
-    RV[:] = None
-
-    # load the id mapping file
-    veNOG_Ensm_Unip_file = data_dir + "/data/PTMsites/veNOG_Ensm_Unip.txt"
-    veNOG_Ensm_Unip = np.loadtxt(veNOG_Ensm_Unip_file, delimiter='\t', 
-    	skiprows=1, dtype="str")
-
-    # id mapping and co-evolution
-    idx_pro = np.where(veNOG_Ensm_Unip[:,2] == unip_id)[0]
-    if idx_pro.shape[0] == 0:
-        print("No MSA file in veNOG of protein %s!" %unip_id)
-        return RV
-    elif idx_pro.shape[0] > 1:
-        if np.unique(veNOG_Ensm_Unip[idx_pro,0]).shape[0] == 1:
-            pass
-            # print("Multiple Ensembl ids in one veNOG file for %s!" %unip_id)
-        else:
-            print("Multiple veNOG files for %s!" %unip_id)
-    # We will use the first one for simplisity
-    NOG_id = veNOG_Ensm_Unip[idx_pro,0]
-    Ensm_id = veNOG_Ensm_Unip[idx_pro,1]
-
-    pro_id, NOG_id = Ensm_id[0], NOG_id[0]
-
-    # load veNOG and Ensembl id map file
-    #align_dir = "../data/eggNOG4/veNOG.align/"
-    align_dir = data_dir + "/data/eggNOG4/veNOG/"
-
-    # check the veNOG file
-    if os.path.isfile(align_dir + NOG_id + ".fa") == False:
-        print("No file of %s" %NOG_id + ".fa in the path %s" %align_dir)
-        return RV
-
-    # process the fasta file
-    fasta_file = align_dir + NOG_id + ".fa"
-    names, seqs, species = readFastaEntry(fasta_file, rm_paralog, pro_id)
-
-    # get the sequence of pro_id in use
-    pro_idx = np.where(names == ("9606."+pro_id))[0][0]
-    human_seq = seqs[pro_idx]
-    seq_len = len(human_seq) - human_seq.count("-")
-
-    for i in range(site1.shape[0]):
-        # check the site and residue in aligned sequences
-        msa_site1 = get_msa_site(pro_id, human_seq, site1[i]-1, res1[i])
-        msa_site2 = get_msa_site(pro_id, human_seq, site2[i]-1, res2[i])
-
-        if msa_site1 == -1 or msa_site2 == -1:
-            msa_site1 = get_align_site(unip_id, human_seq, site1[i]-1, res1[i], data_dir)
-            msa_site2 = get_align_site(unip_id, human_seq, site2[i]-1, res2[i], data_dir)
-
-        # if msa_site1 == -1 or msa_site2 == -1:
-        #     print("The %dth or %dth site" %(site1[i]+1, site2[i]+1) + 
-        #           " of %s" %pro_id + " does not match with residue.")
-        #     continue
-
-        unmatch = False
-        if msa_site1 == -1:
-            print("The %d residue %s of %s doesn't match in MSA file" 
-                %(site1[i], res1[i], pro_id))
-            unmatch = True
-        if msa_site2 == -1:
-            print("The %d residue %s of %s doesn't match in MSA file" 
-                %(site2[i], res2[i], pro_id))
-            unmatch = True
-        if unmatch:
-            continue
-
-        # get the consevation sequences
-        con_res1, con_res2 = [], []
-        for j in range(len(names)):
-            con_res1.append(seqs[j][msa_site1])
-            con_res2.append(seqs[j][msa_site2])
-
-        # get the site co-evolution score via normalized mutual information
-        RV[i] = normalized_mutual_info_score(con_res1, con_res2)
-        #print con_res1, con_res2
-
-    return RV
-
-
-
-
-def id_mapping(IDs1, IDs2):
-    """
-    Mapping IDs2 to IDs1, both of which should only contain unique ids.
+    Mapping IDs2 to IDs1. IDs1 (ref id) can have repeat values, but IDs2 need 
+    to only contain unique ids.
+    Therefore, IDs2[rv_idx] will be the same as IDs1.
     
     Parameters
     ----------
@@ -360,10 +222,40 @@ def id_mapping(IDs1, IDs2):
             RV_idx1.append(idx1[i])
             RV_idx2.append(idx2[j])
             i += 1
-            j += 1
+            if uniq_ref_only: 
+                j += 1
         elif IDs1[idx1[i]] > IDs2[idx2[j]]:
             j += 1
             
     origin_idx = np.argsort(RV_idx1)
     RV_idx = np.array(RV_idx2)[origin_idx]
     return RV_idx
+
+
+
+def fetch_PTMcoEvol(samples, PTM_species_file, verbose):
+    PTMcoEvol_val = np.zeros(samples.shape[0])
+
+    data = np.genfromtxt(PTM_species_file, delimiter='\t', 
+        skip_header=1, dtype="str")
+    PTM_val = data[:, 3:6].astype(float)
+    PTM_ids = [x[0]+":"+x[1] for x in data[:,0:2]]
+
+    samples_ids1 = [x[0]+":"+x[1] for x in samples[:,0:2]]
+    samples_ids2 = [x[0]+":"+x[1] for x in samples[:,3:5]]
+
+    idx1 = id_mapping(samples_ids1, PTM_ids, uniq_ref_only=False)
+    idx2 = id_mapping(samples_ids2, PTM_ids, uniq_ref_only=False)
+
+    for i in range(len(PTMcoEvol_val)):
+        if idx1[i] >= 0 and idx2[i] >= 0:
+            PTMcoEvol_val[i] = np.mean(PTM_val[int(idx1[i])] * 
+                                       PTM_val[int(idx2[i])])
+        else:
+            PTMcoEvol_val[i] = None
+
+    idx = PTMcoEvol_val == PTMcoEvol_val
+    mean_val = np.mean(PTMcoEvol_val[idx])
+    print("[PTM-X] fetched PTM co-evolution for %d samples. mean: %.3f, " 
+          "NA: %.1f%%." %(len(samples), mean_val, 100-np.mean(idx)*100))
+    return PTMcoEvol_val

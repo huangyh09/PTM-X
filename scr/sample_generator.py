@@ -12,8 +12,9 @@ from optparse import OptionParser
 def main():
     #0. parse command line options
     parser = OptionParser()
-    parser.add_option("--data_dir", "-d", dest="data_dir", help="The diroctory of the PTM sites data",
-                      default="../interface/crosstalkSamples/")
+    parser.add_option("--data_dir", "-d", dest="data_dir", 
+        help="The diroctory of collected crosstalk samples",
+        default="../interface/crosstalkSamples/")
     (options, args) = parser.parse_args()
     data_dir = options.data_dir
 
