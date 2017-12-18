@@ -1,80 +1,85 @@
 #!/usr/bin/python2.7
-# run python inParanoid_merge.py
+# merge the human-mouse and human-rat orthoglo from InParaniod
+
+import sys
+sys.path.append('../PTMXtalk/')
+from utils.base import id_mapping
 
 import numpy as np
+from os.path import expanduser
 
-def data_load(data_file):
+def load_inParanoid(data_file, threshold=90, ref_org="H.sapiens", 
+    multiple_ref=True):
+    """
+    When multiple ref proteins map to multiple proteins in the other species,
+    Keep all ref proteins but only use the highest or the first protein in the 
+    other species.
+    """
     fid = open(data_file, "r")
     all_lines = fid.readlines()
     fid.close()
-    
-    # delete the orthogous protein with score lower than 90%
-    lines_new = []
-    for i in range(len(all_lines)):
-        line_tmp = all_lines[i].split()
-        if len(line_tmp) == 6 and int(line_tmp[5][:-1]) > 90:
-            lines_new.append(line_tmp)
-    return np.array(lines_new,"str")
-    
-def rm_no_ortholog(data_set, spc_num=2):
-    # delete the protein with no orthologous protein
-    del_idx = np.array([],"int")
-    start_idx = 0
-    tmp_num = data_set[0,0]
-    for i in range(len(data_set)):
-        if data_set[i,0] != tmp_num :
-            # remove the protein with paralog
-            if (i-start_idx != 2 or 
-                np.unique(data_set[start_idx:i,2]).shape[0] < spc_num):
-                del_idx = np.append(del_idx, np.arange(start_idx, i))
-            start_idx = i
-            tmp_num = data_set[i,0]
-    RV = np.delete(data_set, del_idx, axis=0)
-    return RV
+
+    data = []
+    for _line in all_lines:
+        if len(_line.split()) == 6:
+            data.append(_line.split())
+    data = np.array(data)
+
+    idx_sort = np.argsort(data[:, 0])
+    data_use = data[idx_sort, :]
+    data_ids, data_idx = np.unique(data_use[:, 0], return_index=True)
+
+    pair_ids = []
+    for i in range(data_ids.shape[0]):
+        if i == (data_ids.shape[0] - 1):
+            idx_item = np.arange(data_idx[i], data_use.shape[0])
+        else:
+            idx_item = np.arange(data_idx[i], data_idx[i+1])
+
+        organism_unique = np.unique(data_use[idx_item, 2])
+        if len(organism_unique) < 2 or (ref_org not in organism_unique):
+            continue
+
+        scores = np.array([float(x[:-1]) for x in data_use[idx_item, 5]])
+        _idx1 = np.where(data_use[idx_item, 2] == ref_org)[0]
+        _idx2 = np.where(data_use[idx_item, 2] != ref_org)[0]
+        idx_1 = idx_item[_idx1[np.argmax(scores[_idx1])]]
+        idx_2 = idx_item[_idx2[np.argmax(scores[_idx2])]]
+        if min(np.max(scores[_idx1]), np.max(scores[_idx2])) <= threshold:
+            continue
+        if multiple_ref == False:
+            _idx1 = np.array([_idx1[np.argmax(scores[_idx1])]])
+        for idx_1 in idx_item[_idx1]:
+            pair_ids.append([data_use[idx_1, 4], data_use[idx_2, 4]])
+    return np.array(pair_ids)
+
 
 def main():
-    data_dir = "/afs/inf.ed.ac.uk/user/s13/s1333321/research/PTM-X/data/ortholog/"
+    data_dir = expanduser("~") + "/research/PTM-X/data/ortholog/InParanoid.raw/"
     hm_ms_file = data_dir + "sqltable.H.sapiens-M.musculus"
     hm_rt_file = data_dir + "sqltable.H.sapiens-R.norvegicus"
-    hm_ms_rt_file = data_dir + "human_mouse_rat.txt"
+    hm_ms_rt_file = data_dir + "/../human_mouse_rat.txt"
 
-    # hm_ms_file = "/homes/huangh/crosstalkPTM/data/ortholog/sqltable.H.sapiens-M.musculus"
-    # hm_rt_file = "/homes/huangh/crosstalkPTM/data/ortholog/sqltable.H.sapiens-R.norvegicus"
-    # hm_ms_rt_file = "/homes/huangh/crosstalkPTM/data/ortholog/human_mouse_rat.txt"
+    threshold = 90
 
-    hm_ms_map = data_load(hm_ms_file)
-    hm_rt_map = data_load(hm_rt_file)
+    hm_ms_map = load_inParanoid(hm_ms_file, threshold)
+    hm_rt_map = load_inParanoid(hm_rt_file, threshold)
 
-    hm_ms_map = rm_no_ortholog(hm_ms_map)
-    hm_rt_map = rm_no_ortholog(hm_rt_map)
+    idx0 = id_mapping(hm_ms_map[:,0], hm_rt_map[:,0])
+    idx1 = np.arange(len(idx0))[idx0>=0]
+    idx2 = idx0[idx1].astype(int)
 
-    hm_idx1 = np.where(hm_ms_map[:,2] == "H.sapiens")[0]
-    hm_idx2 = np.where(hm_rt_map[:,2] == "H.sapiens")[0]
-    hm_pro1 = hm_ms_map[hm_idx1,4]
-    hm_pro2 = hm_rt_map[hm_idx2,4]
+    hm_ms_map_out = hm_ms_map[idx1, :]
+    hm_rt_map_out = hm_rt_map[idx2, :]
+    # print(hm_ms_map_out)
+    # print(hm_rt_map_out)
 
     fid = open(hm_ms_rt_file,"w")
     fid.writelines("human\tmouse\trat\n")
-
-    for i in range(hm_pro1.shape[0]):
-        _idx = np.where(hm_pro1[i] == hm_pro2)[0]
-        if _idx.shape[0] == 1:
-            if (hm_ms_map[hm_idx1[i],0] != hm_ms_map[hm_idx1[i]+1,0] or 
-                hm_rt_map[hm_idx2[_idx[0]],0] != hm_rt_map[hm_idx2[_idx[0]]+1,0]):
-                print("something wrong!")
-                exit()
-
-            else :
-                line_tmp = "\t".join([hm_ms_map[hm_idx1[i],4], 
-                    hm_ms_map[hm_idx1[i]+1,4], 
-                    hm_rt_map[hm_idx2[_idx[0]]+1,4]])
-                fid.writelines(line_tmp + "\n")
-
-    print(hm_ms_map.shape)
-    print(hm_rt_map.shape)
-
-    print(np.unique(hm_ms_map[:,0]).shape)
-    print(np.unique(hm_rt_map[:,0]).shape)
+    for i in range(hm_ms_map_out.shape[0]):
+        _list = np.append(hm_ms_map_out[i,:], hm_rt_map_out[i,1])
+        fid.writelines("\t".join(list(_list)) + "\n")
+    fid.close()
 
 
 if __name__ == '__main__':

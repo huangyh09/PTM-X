@@ -2,6 +2,7 @@
 # run python ortholog2fasta.py
 
 import numpy as np
+from os.path import expanduser
 
 def get_name_idx(fasta_lines):
     names = [fasta_lines[0][1:-1]]
@@ -17,14 +18,13 @@ def get_name_idx(fasta_lines):
     return np.array(names), np.array(idx, "int")
 
 def main():
-    data_dir = "/afs/inf.ed.ac.uk/user/s13/s1333321/research/PTM-X/data/ortholog/"
-    fasta_dir = "/homes/huangh/crosstalkPTM/data/ortholog/InParanoid.fasta/"
+    data_dir = expanduser("~") + "/research/PTM-X/data/ortholog/"
     hm_ms_rt_file = data_dir + "human_mouse_rat.txt"
     ortholog = np.loadtxt(hm_ms_rt_file, "str", delimiter="\t", skiprows=1)
 
-    human_pro_file = data_dir + "9606.fasta"
-    mouse_pro_file = data_dir + "10090.fasta"
-    rat_pro_file = data_dir + "10116.fasta"
+    human_pro_file = data_dir + "InParanoid.raw/9606.fasta"
+    mouse_pro_file = data_dir + "InParanoid.raw/10090.fasta"
+    rat_pro_file = data_dir + "InParanoid.raw/10116.fasta"
 
     fid = open(human_pro_file,"r")
     human_pro = fid.readlines()
@@ -53,7 +53,7 @@ def main():
         ms_seq = mouse_pro[ms_idx[_idx2[0],0] : ms_idx[_idx2[0],1]]
         rt_seq = rat_pro[rt_idx[_idx3[0],0] : rt_idx[_idx3[0],1]]
 
-        fid = open(data_dir + "InParanoid.fasta/" + ortholog[i,0]+".fasta","w")
+        fid = open(data_dir + "InParanoid.fasta/" + ortholog[i,0]+".fa","w")
         fid.writelines(hm_seq)
         fid.writelines(ms_seq)
         fid.writelines(rt_seq)
