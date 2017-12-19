@@ -72,7 +72,8 @@ class MultiModel:
         n_sample: int
             The number of samples in each class, shoud be smaller than min class
         n_jobs: int
-            Number of cores for parallel fit and predict on multiple models
+            Number of cores for parallel fit and predict on multiple models. 
+            When it is -1, it will use half of the total cores.
         """
         self.models = [model] * n_model
         self.n_jobs = n_jobs
