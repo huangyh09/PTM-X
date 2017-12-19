@@ -26,8 +26,8 @@ by the mean product of the two vectors. Again, the eggNOG v4.5 is used here.
 mouse and rat. The raw PTM data for these three species is downloaded from 
 `PhosphoSitePlus <https://www.phosphosite.org>`_.
 
-4. ``PTM co-occurrence``: The co-occurrence between the two PTMs across 89 
-tissue and disease conditions.
+4. ``PTM co-occurrence``: The co-occurrence between the two PTMs across across 
+88 tissue, disease and cellline conditions.
 
 Get started
 -----------
