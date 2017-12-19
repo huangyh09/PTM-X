@@ -38,11 +38,11 @@ def main():
         exit()
 
     X1 = np.genfromtxt(positive_file, delimiter='\t', skip_header=1, 
-        dtype="str")[:, 6:].astype(float)
+        dtype="str")[:, 6:10].astype(float)
     X2 = np.genfromtxt(negative_file, delimiter='\t', skip_header=1, 
-        dtype="str")[:, 6:].astype(float)
+        dtype="str")[:, 6:10].astype(float)
     Xtest = np.genfromtxt(test_file, delimiter='\t', skip_header=1, 
-        dtype="str")[:, 6:].astype(float)
+        dtype="str")[:, 6:10].astype(float)
 
     X = np.append(X1, X2, axis=0).astype(float)
     Y = np.append(np.ones(X1.shape[0]), np.zeros(X2.shape[0]))
