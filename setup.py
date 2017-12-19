@@ -17,7 +17,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
     
-reqs = ['numpy>=1.12.0', 'scipy>=0.18.1', 'scikit-learn>=0.17']
+reqs = ['numpy>=1.12.0', 'scipy>=0.18.1', 'scikit-learn>=0.17', 'joblib>=0.11']
 
 setup(
     name='PTMXtalk',
