@@ -115,7 +115,7 @@ class MultiModel:
             pool = multiprocessing.Pool(processes=n_jobs)
             result = []
             for i in range(self.n_model):
-                result.append(pool.apply_async(fit_model, (self.models[i], 
+                result.append(pool.apply_async(lite_fit, (self.models[i], 
                     X_list[i], Y_list[i])))
             pool.close()
             pool.join()
