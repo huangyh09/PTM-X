@@ -3,11 +3,12 @@
 
 # To import this: 
 # import sys
-# sys.path.append('../scr')
+# sys.path.append('../PTMXtalk')
 # from classifier import KernalNB, CrossValidation
 
 import numpy as np
 import scipy.stats as st
+import multiprocessing
 
 class KernalNB:
     def __init__(self, priors=None):
@@ -38,21 +39,51 @@ class KernalNB:
         proba = proba / proba.sum(axis=1).reshape(-1,1)
         return proba
 
+
+def lite_fit(model, X, y):
+    model.fit(X, y)
+    return model
+
+def lite_predict(model, X):
+    return model.predict(X)
+
+def lite_predict_proba(model, X):
+    return model.predict_proba(X)
+
+
 class MultiModel:
-    """Bootstraping samples in each class, and generate multiple models based 
-    on each bootstrapped sample sets.
+    """Bootstraping samples in each class with option to generate balanced 
+    subsamples. On each bootstrap sample set, a separate model will be trained. 
     """
     def __init__(self, model, n_model=1, bootstrap=True, balanced=True, 
-        n_sample=None):
-        """Initialize the mutliple models
+        n_sample=None, n_jobs=1):
+        """Initialize the MultiModel object
+
+        Parameters:
+        -----------
+        mdoel: classifier object
+            It should have these functions: fit, predict, predict_proba
+        n_model: int
+            The number of models to fit, same as bootstrap sets
+        bootstrap: bool
+            If True, do bootstrap otherwise no repeat samples
+        balanced: bool
+            If True, generate the same size for each class
+        n_sample: int
+            The number of samples in each class, shoud be smaller than min class
+        n_jobs: int
+            Number of cores for parallel fit and predict on multiple models
         """
         self.models = [model] * n_model
+        self.n_jobs = n_jobs
         self.n_model = n_model
         self.n_sample = n_sample
         self.balanced = balanced
         self.bootstrap = bootstrap
         
-    def fit(self, X, Y):
+    def fit(self, X, Y, n_jobs=None):
+        """If n_jobs is None, than use the initalized n_jobs.
+        """
         y_uniq, y_len = np.unique(Y, return_counts=True)
         xx_set = [X[Y==Ytmp, :] for Ytmp in y_uniq]
         if self.balanced:
@@ -60,6 +91,8 @@ class MultiModel:
                 y_len[:] = np.min(y_len)
             else:
                 y_len[:] = self.n_sample
+            
+        X_list, Y_list = [], []
         for i in range(self.n_model):
             xx, yy = np.zeros((0, X.shape[1])), np.zeros(0)
             for j in range(len(y_uniq)):
@@ -70,23 +103,88 @@ class MultiModel:
                     idx = np.arange(y_len[j]) + remainder
                 yy = np.append(yy, [y_uniq[j]] * len(idx))
                 xx = np.append(xx, xx_set[j][idx, :], axis=0)
-            self.models[i].fit(xx, yy)
+            X_list.append(xx)
+            Y_list.append(yy)
+
+        if n_jobs is None:
+            n_jobs = self.n_jobs
+        if n_jobs == -1:
+            n_jobs = int(multiprocessing.cpu_count() / 2)
+        if n_jobs > 1:
+            pool = multiprocessing.Pool(processes=n_jobs)
+            result = []
+            for i in range(self.n_model):
+                result.append(pool.apply_async(fit_model, (self.models[i], 
+                    X_list[i], Y_list[i])))
+            pool.close()
+            pool.join()
+            self.models = [res.get() for res in result]
+        else:
+            for i in range(self.n_model):
+                self.models[i].fit(X_list[i], Y_list[i])
+
             
-    def predict(self, Xtest):
-        states = np.zeros((Xtest.shape[0], self.n_model))
-        for i in range(self.n_model):
-            states[:,i] = self.models[i].predict(Xtest)
-        rt_states = np.zeros(Xtest.shape[0])
-        for j in range(states.shape[0]):
-            (values, counts) = np.unique(states[j,:], return_counts=True)
-            rt_states[j] = values[np.argmax(counts)]
-        return rt_states
+    def predict(self, Xtest, merge=True, n_jobs=None):
+        """If n_jobs is None, than use the initalized n_jobs.
+        """
+        if n_jobs is None:
+            n_jobs = self.n_jobs
+        if n_jobs == -1:
+            n_jobs = int(multiprocessing.cpu_count() / 2)
+        if n_jobs > 1:
+            pool = multiprocessing.Pool(processes=n_jobs)
+            result = []
+            for _model in self.models:
+                result.append(pool.apply_async(lite_predict, (_model, Xtest)))
+            pool.close()
+            pool.join()
+            states_list = [res.get() for res in result]
+        else:
+            states_list = []
+            for _model in self.models:
+                states_list.append(_model.predict(Xtest))
+            
+        if merge:
+            RT_states = np.zeros(len(states_list[0]))
+            for j in range(len(RT_states)):
+                _states = [s[j] for s in states_list]
+                (values, counts) = np.unique(_states, return_counts=True)
+                RT_states[j] = values[np.argmax(counts)]
+        else:
+            RT_states = states_list
+
+        return RT_states
     
-    def predict_proba(self, Xtest):
-        scores = self.models[0].predict_proba(Xtest)
-        for i in range(1, self.n_model):
-            scores += self.models[i].predict_proba(Xtest)
-        return scores / self.n_model
+    def predict_proba(self, Xtest, merge=True, n_jobs=None):
+        """If n_jobs is None, than use the initalized n_jobs.
+        """
+        if n_jobs is None:
+            n_jobs = self.n_jobs
+        if n_jobs == -1:
+            n_jobs = int(multiprocessing.cpu_count() / 2)
+        if n_jobs <= 1:
+            pool = multiprocessing.Pool(processes=n_jobs)
+            result = []
+            for _model in self.models:
+                result.append(pool.apply_async(lite_predict_proba, 
+                    (_model, Xtest)))
+            pool.close()
+            pool.join()
+            scores_list = [res.get() for res in result]
+        else:
+            scores_list = []
+            for _model in self.models:
+                scores_list.append(_model.predict_proba(Xtest))
+
+        if merge:
+            RT_scores = scores_list[0]
+            for j in range(1, len(scores_list)):
+                RT_scores += scores_list[j]
+            RT_scores = RT_scores / len(scores_list)
+        else:
+            RT_scores = scores_list
+
+        return RT_scores
 
 
 class CrossValidation:

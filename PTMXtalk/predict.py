@@ -4,10 +4,12 @@
 # forest classifier.
 
 import os
+import joblib
 import numpy as np
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 from utils.classifier import MultiModel
 from sklearn.ensemble import RandomForestClassifier
+
 
 def main():
     #0. parse command line options
@@ -17,19 +19,31 @@ def main():
         help="The feature file to predict.")
     parser.add_option("-o", "--output-file", dest="predict_file", 
         help="The output file with predicted results", default=None)
-    parser.add_option("--positive", dest="positive_file", 
+    parser.add_option("-m", "--model-file", dest="model_file", 
+        help="The file with trained models. If lack, please input positive and "
+        "negative feature files", default=None)
+
+    group = OptionGroup(parser, "Optional arguments")
+    group.add_option("--positive", dest="positive_file", 
         help="The feature file for positve samples", default=None)
-    parser.add_option("--negative", dest="negative_file", 
+    group.add_option("--negative", dest="negative_file", 
         help="The feature file for negative samples", default=None)
-    parser.add_option("-s", "--seed", dest="seed", default=None, type="float",
+    group.add_option("--model-out-file", dest="model_out", 
+        help="The file for newly trained mdoels", default=None)
+    group.add_option("--N-model", "-N", type="int", dest="n_model", 
+        default="100", help="Number of models [default: %default]")
+    group.add_option("-s", "--seed", dest="seed", default=None, type="float",
         help="Seed for randomness. default not set.")
-    
+    group.add_option("--nproc", "-p", type="int", dest="nproc", default="1",
+        help="Number of subprocesses to fit and predict [default: %default]")
+    parser.add_option_group(group)
+
     # main arguments
     (options, args) = parser.parse_args()
+    nproc = options.nproc
     test_file = options.test_file
+    model_file = options.model_file
     predict_file = options.predict_file
-    positive_file = options.positive_file
-    negative_file = options.negative_file
 
     if options.seed is not None:
         np.random.seed(int(options.seed))
@@ -37,48 +51,53 @@ def main():
         print("[PTM-X] Error: output-file is not writable. Please check!")
         exit()
 
-    X1 = np.genfromtxt(positive_file, delimiter='\t', skip_header=1, 
-        dtype="str")[:, 6:10].astype(float)
-    X2 = np.genfromtxt(negative_file, delimiter='\t', skip_header=1, 
-        dtype="str")[:, 6:10].astype(float)
+    # load model if exist otherwise fit model
+    if model_file is not None:
+        (RT_model, att_sets) = joblib.load(model_file)
+    else:
+        n_model = options.n_model
+        model_out = options.model_out
+        positive_file = options.positive_file
+        negative_file = options.negative_file
+        if model_out is None:
+            model_out = os.path.dirname(predict_file) + "/trained_model_set.pkl"
+        
+        X1 = np.genfromtxt(positive_file, delimiter='\t', skip_header=1, 
+            dtype="str")[:, 6:10].astype(float)
+        X2 = np.genfromtxt(negative_file, delimiter='\t', skip_header=1, 
+            dtype="str")[:, 6:10].astype(float)
+        
+        X = np.append(X1, X2, axis=0)
+        Y = np.append(np.ones(X1.shape[0]), np.zeros(X2.shape[0]))
+
+        RT_model = []
+        att_sets = [[0, 1, 2, 3], [0, 1, 2], [0, 1]]
+        for k in range(len(att_sets)):
+            xx = X[:, att_sets[k]]
+            ii = np.min(xx == xx, axis=1)
+            RF_model = RandomForestClassifier(n_estimators=100, n_jobs=1)
+            MM_model = MultiModel(model=RF_model, n_model=n_model, n_jobs=nproc)
+            MM_model.fit(xx[ii, :], Y[ii])
+            RT_model.append(MM_model)
+
+        if os.access(os.path.dirname(model_out), os.W_OK) == False:
+            print("[PTM-X] Warning: model-out-file is not writable!")
+        else:
+            joblib.dump((RT_model, att_sets), model_out)
+    
+    # predict test data
     Xtest = np.genfromtxt(test_file, delimiter='\t', skip_header=1, 
         dtype="str")[:, 6:10].astype(float)
-
-    X = np.append(X1, X2, axis=0).astype(float)
-    Y = np.append(np.ones(X1.shape[0]), np.zeros(X2.shape[0]))
 
     scores = np.zeros(Xtest.shape[0])
     states = np.zeros(Xtest.shape[0])
     scores[:], states[:] = None, None
 
-    att_code_test = np.dot(Xtest==Xtest, 2**np.arange(4))
-    att_code_train = np.dot(X==X, 2**np.arange(4))
-
-    att_use = [[0,1,2,3], [0,1,2], [0,1]]
-    att_code_use = [15, 7, 3]
-    for i in range(len(att_use)):
-        idx_test = att_code_test == att_code_use[i]
-        idx_train = np.mean(X[:,att_use[i]] == X[:,att_use[i]], axis=1) == 1
-
-        _Y = Y[idx_train]
-        _X = X[idx_train, :][:, att_use[i]]
-        _Xtest = Xtest[idx_test, :][:, att_use[i]]
-
-        if sum(idx_test) == 0 or len(np.unique(_Y)) < 2:
-            continue
-
-        # RF_model = RandomForestClassifier(n_estimators=100, n_jobs=-1)
-        # RF_model.fit(_X, _Y)
-
-        # states[idx_test] = RF_model.predict(_Xtest)
-        # scores[idx_test] = RF_model.predict_proba(_Xtest)[:,1]
-
-        RF_model = RandomForestClassifier(n_estimators=100, n_jobs=-1)
-        mModel = MultiModel(model=RF_model, n_model=10)
-        mModel.fit(_X, _Y)
-
-        states[idx_test] = mModel.predict(_Xtest)
-        scores[idx_test] = mModel.predict_proba(_Xtest)[:,1]
+    for k in range(len(att_sets)):
+        xx = Xtest[:, att_sets[k]]
+        ii = np.min(xx == xx, axis=1)
+        states[ii] = RT_model[k].predict(xx[ii,:], n_jobs=nproc)
+        scores[ii] = RT_model[k].predict_proba(xx[ii,:], n_jobs=nproc)[:,1]
 
     # save results
     data = np.genfromtxt(test_file, delimiter='\t', skip_header=0, dtype="str")
