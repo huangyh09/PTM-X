@@ -6,6 +6,7 @@
 import os
 import numpy as np
 from optparse import OptionParser
+from utils.classifier import MultiModel
 from sklearn.ensemble import RandomForestClassifier
 
 def main():
@@ -66,11 +67,18 @@ def main():
         if sum(idx_test) == 0 or len(np.unique(_Y)) < 2:
             continue
 
-        RF_model = RandomForestClassifier(n_estimators=100, n_jobs=-1)
-        RF_model.fit(_X, _Y)
+        # RF_model = RandomForestClassifier(n_estimators=100, n_jobs=-1)
+        # RF_model.fit(_X, _Y)
 
-        states[idx_test] = RF_model.predict(_Xtest)
-        scores[idx_test] = RF_model.predict_proba(_Xtest)[:,1]
+        # states[idx_test] = RF_model.predict(_Xtest)
+        # scores[idx_test] = RF_model.predict_proba(_Xtest)[:,1]
+
+        RF_model = RandomForestClassifier(n_estimators=100, n_jobs=-1)
+        mModel = MultiModel(model=RF_model, n_model=10)
+        mModel.fit(_X, _Y)
+
+        states[idx_test] = mModel.predict(_Xtest)
+        scores[idx_test] = mModel.predict_proba(_Xtest)[:,1]
 
     # save results
     data = np.genfromtxt(test_file, delimiter='\t', skip_header=0, dtype="str")
