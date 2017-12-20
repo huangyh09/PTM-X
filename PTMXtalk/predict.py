@@ -7,7 +7,7 @@ import os
 import joblib
 import numpy as np
 from optparse import OptionParser, OptionGroup
-from utils.classifier import MultiModel
+from PTMXtalk.utils.classifier import MultiModel
 from sklearn.ensemble import RandomForestClassifier
 
 
