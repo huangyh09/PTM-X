@@ -71,7 +71,7 @@ def main():
         Y = np.append(np.ones(X1.shape[0]), np.zeros(X2.shape[0]))
 
         RT_model = []
-        att_sets = [[0, 1, 2, 3], [0, 1, 2], [0, 1]]
+        att_sets = [[0, 1, 2, 3], [0, 1, 2], [0, 1, 3], [0, 1]]
         for k in range(len(att_sets)):
             xx = X[:, att_sets[k]]
             ii = np.min(xx == xx, axis=1)
@@ -96,6 +96,9 @@ def main():
     for k in range(len(att_sets)):
         xx = Xtest[:, att_sets[k]]
         ii = np.min(xx == xx, axis=1)
+        ii = ii * (~(states == states)) # only unpredicted samples, still None
+        if sum(ii) == 0:
+            continue
         states[ii] = RT_model[k].predict(xx[ii,:], n_jobs=nproc)
         scores[ii] = RT_model[k].predict_proba(xx[ii,:], n_jobs=nproc)[:,1]
 
