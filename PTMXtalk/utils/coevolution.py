@@ -50,7 +50,7 @@ def get_msa(NOG_id, Ensm_id, PTM, rm_paralog=True, verbose=True,
     if os.path.isfile(fasta_file) == False:
         if verbose:
             print("No file of %s.fa in the path %s." %(NOG_id, align_dir))
-        return msa_seq, msa_species, msa_prot
+        return msa_seq, msa_species, msa_prot, motif_cons
 
     # process the fasta file. 
     # Please remove paralog at this level. 
