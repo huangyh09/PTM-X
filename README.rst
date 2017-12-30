@@ -4,8 +4,8 @@ PTM-X: PTM cross-talk predictor
 About PTM-X
 -----------
 
-PTM-X is an algorithm to predict posttranslational modification(PTM) cross-talk 
-both intra- and inter proteins. In current version, the following four features 
+PTM-X is an algorithm to predict post-translational modification(PTM) cross-talk 
+both intra- and inter- protein. In current version, the following four features 
 are used to predict PTM cross-talk inter proteins, via a 
 `random forest <http://scikit-learn.org/stable/modules/ensemble.html#forest>`_ 
 classifier.
