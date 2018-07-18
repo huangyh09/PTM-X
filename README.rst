@@ -16,7 +16,7 @@ multiple vertebrates. The multiple sequence alignment data is downloaded from
 1-`Hamming loss <http://scikit-learn.org/stable/modules/model_evaluation.html#hamming-loss>`_ 
 is used to measure the co-evolution score.
 
-2. ``motif co-conservation``: The +/-4 surrounding amino acids are used to form 
+2. ``motif co-conservation``: The +/-3 surrounding amino acids are used to form 
 the motif for a given PTM locus. The fraction of consistence the this motif in 
 any vertebrate comparing to its human orthologous protein. Based on the two 
 vectors of motif conservation fraction, the co-conservation score is calculated 
@@ -37,13 +37,21 @@ unzip it, and set the directory as the accordding parameter.
 
 Installation
 ~~~~~~~~~~~~
-The easiest way to install the python platform is using 
-`Anaconda <https://www.anaconda.com/download/>`_ with Python 2.7. 
-We haven't tested it on Python 3 (it may come as an upgraded version).
-Here, PTMXtalk module requires the following packages: ``numpy>=1.12.0``, 
-``scipy>=0.18.1``, ``scikit-learn>=0.17``, ``joblib>=0.11``.
+First, you need a Python environment for supporting packages. The easiest way 
+might be installing the python platform via 
+`Anaconda <https://www.anaconda.com/download/>`_. PTM-X is only compatible with 
+Python 2.7. If you are using Anaconda 3, create a 
+`conda environment <https://conda.io/docs/user-guide/tasks/manage-environments.html>`_ 
+with Python 2.7 and dependent packages as follows,
 
-Download the codes from this github repository [`master.zip <https://github.com/huangyh09/PTM-X/archive/master.zip>`_] 
+::
+
+    conda create --name ptmxPy2 python=2.7 numpy scipy scikit-learn==0.17 joblib==0.11
+    # activate the environment
+    conda activate ptmxPy2
+
+Then clone or download the codes from this github repository 
+[`master.zip <https://github.com/huangyh09/PTM-X/archive/master.zip>`_] 
 and then run the following command line:
 
 ::
