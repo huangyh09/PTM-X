@@ -71,7 +71,8 @@ def main():
         Y = np.append(np.ones(X1.shape[0]), np.zeros(X2.shape[0]))
 
         RT_model = []
-        att_sets = [[0, 1, 2, 3], [0, 1, 2], [0, 1, 3], [0, 1]]
+        #att_sets = [[0, 1, 2, 3], [0, 1, 2], [0, 1, 3], [0, 1]]
+        att_sets = [[0, 1, 3], [0, 1]]
         for k in range(len(att_sets)):
             xx = X[:, att_sets[k]]
             ii = np.min(xx == xx, axis=1)
