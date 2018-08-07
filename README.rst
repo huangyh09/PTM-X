@@ -10,23 +10,23 @@ are used to predict PTM cross-talk inter proteins, via a
 `random forest <http://scikit-learn.org/stable/modules/ensemble.html#forest>`_ 
 classifier.
 
-1. ``sequence co-evolution``: The coevolution between two the amino acids across 
+1. ``sequence residue co-evolution``: The coevolution between two the amino acids across 
 multiple vertebrates. The multiple sequence alignment data is downloaded from 
 `eggNOG v4.5 <http://eggnogdb.embl.de>`_. Here, the 
 1-`Hamming loss <http://scikit-learn.org/stable/modules/model_evaluation.html#hamming-loss>`_ 
 is used to measure the co-evolution score.
 
-2. ``motif co-conservation``: The +/-3 surrounding amino acids are used to form 
+2. ``sequence motif co-evolution``: The +/-3 surrounding amino acids are used to form 
 the motif for a given PTM locus. The fraction of consistence the this motif in 
 any vertebrate comparing to its human orthologous protein. Based on the two 
 vectors of motif conservation fraction, the co-conservation score is calculated 
 by the mean product of the two vectors. Again, the eggNOG v4.5 is used here.
 
-3. ``PTM co-conservation``: The co-conservation of PTM existence across human, 
+3. ``Co-modification across different species``: The co-conservation of PTM existence across human, 
 mouse and rat. The raw PTM data for these three species is downloaded from 
 `PhosphoSitePlus <https://www.phosphosite.org>`_.
 
-4. ``PTM co-occurrence``: The co-occurrence between the two PTMs across 88 
+4. ``Co-modification across different conditions``: The co-occurrence between the two PTMs across 88 
 tissue, disease and cellline conditions.
 
 Get started
