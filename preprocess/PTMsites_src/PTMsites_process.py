@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # load all files that contains the PTM sites
     PTM_file = all_files[0].split()[0]
     PTMsites = np.array([], dtype="S50").reshape(-1, len(keys))
-    for i in range(1,len(all_files)):
+    for i in range(0,len(all_files)):
         PTM_file = all_files[i].split()[0]
         PTM_type = os.path.basename(all_files[i]).split("_")[0]
         PTMsites_tmp = load_file(os.path.join(data_dir, PTM_file), species, keys)
