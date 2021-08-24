@@ -31,34 +31,36 @@ tissue, disease and cellline conditions.
 
 Get started
 -----------
-Note, you need download the data to fetch above four features. Downloaded the 
-data from `here <http://ufpr.dl.sourceforge.net/project/ptm-crosstalk/PTM-X_data_v2.2.zip>`_,
-unzip it, and set the directory as the accordding parameter.
+
 
 Installation
 ~~~~~~~~~~~~
-First, you need a Python environment for supporting packages. The easiest way 
+**Step 1**: you need a Python environment for supporting packages. The easiest way 
 might be installing the python platform via 
 `Anaconda <https://www.anaconda.com/download/>`_. PTM-X is only compatible with 
 Python 2.7. If you are using Anaconda 3, create a 
 `conda environment <https://conda.io/docs/user-guide/tasks/manage-environments.html>`_ 
 with Python 2.7 and dependent packages as follows,
 
-::
+.. code:: bash
 
     conda create --name ptmxPy2 python=2.7 numpy scipy scikit-learn==0.17 joblib==0.11
     # activate the environment
     conda activate ptmxPy2
 
-Then clone or download the codes from this github repository 
-[`master.zip <https://github.com/huangyh09/PTM-X/archive/master.zip>`_] 
-and then run the following command line:
+**Step 2**: install PTM-X package by either downloading the source code here or use the 
+following command line for an equivalent setting:
 
-::
+.. code:: bash
 
-    python setup.py install
+    pip install -U git+https://github.com/huangyh09/PTM-X
 
-If you don't have the root permission, add ``--user``.
+In either case, if you don't have the root permission, add ``--user``.
+
+**Step 3**, to fetch above four featuresd ownload the data from 
+http://ufpr.dl.sourceforge.net/project/ptm-crosstalk/PTM-X_data_v2.2.zip
+Unzip it and set the directory as the according parameter in the command lines below.
+
 
 Fetch features
 ~~~~~~~~~~~~~~
@@ -80,8 +82,8 @@ Links
 * data repository: http://ptm-crosstalk.sourceforge.net
 
 
-Reference
----------
-* For version 1: Huang et al.: `Systematic Characterization and Prediction of Post-Translational Modification Cross-talk <http://www.mcponline.org/content/14/3/761>`_. **Molecular & Cellular Proteomics**, 2015, 14 (3), 761-770.
+References
+----------
+* For version 1 (intra-protein): Huang Y. et al.: `Systematic Characterization and Prediction of Post-Translational Modification Cross-talk <http://www.mcponline.org/content/14/3/761>`_. **Molecular & Cellular Proteomics**, 2015, 14 (3), 761-770.
 
-* For version 2: comming soon.
+* For version 2 (inter-protein): Huang R. et al.: `Systematic characterization and prediction of post-translational modification cross-talk between proteins <https://doi.org/10.1093/bioinformatics/bty1033>`_. **Bioinformatics**, 2019, 35 (15), 2626-2633.
